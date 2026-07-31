@@ -23,9 +23,26 @@ backend/
   services/geminiImageEdit.js   Gemini smile transformation
   services/storage.js           S3 upload of the processed image
   scripts/seed.js    Inserts 6 sample jobs (emails @seed.test) for dashboard dev
-frontend/
-  admin.html         The admin dashboard (vanilla HTML/JS, no build step)
+frontend/            React (Vite) admin dashboard
+  src/App.jsx        State: auth, filters, auto-refresh, panels
+  src/api.js         Fetch wrapper (401 → login screen) + API calls
+  src/components/    LoginScreen, StatTiles, JobsTable, JobDetail, SettingsPanel
+  nginx.conf.template  Serves the build + proxies API to BACKEND_URL (prod)
 ```
+
+## Frontend dev & build
+
+```bash
+cd frontend
+npm install
+npm run dev      # dev server on :5173, proxies API to backend on :3000
+npm run build    # outputs dist/ — the backend serves it at /admin locally
+```
+
+No frontend .env and no CORS config are needed: in dev, Vite proxies
+`/api` etc. to the backend; in production, nginx does the same using the
+`BACKEND_URL` variable on the frontend service. The browser only ever
+talks to its own origin, so cookies work and CORS never applies.
 
 ## Admin dashboard (frontend)
 

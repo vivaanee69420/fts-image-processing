@@ -185,13 +185,17 @@ app.post('/webhooks/ghl-smile-upload', async (req, res) => {
   }
 });
 
-// The page itself is public — it shows a login screen until /api/login succeeds.
-// In the split Railway deployment the frontend service serves the UI instead,
-// so a missing file here answers with a pointer rather than a crash.
+// Local/single-server convenience: serve the BUILT React app at /admin
+// (run `npm run build` in frontend/ first). In the split Railway deployment
+// the frontend service serves the UI instead, and this 404s harmlessly.
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use('/admin', express.static(frontendDist));
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'admin.html'), (err) => {
+  res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
     if (err && !res.headersSent) {
-      res.status(404).json({ error: 'UI is served by the frontend service — open its domain instead' });
+      res.status(404).json({
+        error: 'UI not built — run `npm run build` in frontend/, or open the frontend service domain'
+      });
     }
   });
 });

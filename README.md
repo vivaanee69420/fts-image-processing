@@ -54,6 +54,38 @@ detail panel with the original vs processed photos side by side, and a
    the top of the `/webhooks/ghl-smile-upload` handler to match what you
    actually receive.
 
+## S3 setup
+
+Processed images are uploaded to S3 and must be publicly readable
+(WhatsApp/Meta fetches them without auth). One-time bucket setup:
+
+1. S3 → Create bucket → name `fts-images-processing`, region `eu-west-2`,
+   **uncheck "Block all public access"**.
+2. Bucket → Permissions → Bucket policy → paste:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadSmileResults",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::fts-images-processing/smile-results/*"
+    }
+  ]
+}
+```
+
+3. IAM → Users → create a user with an inline policy allowing
+   `s3:PutObject` on `arn:aws:s3:::fts-images-processing/smile-results/*`,
+   then create an access key → `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+4. `S3_PUBLIC_BASE_URL=https://fts-images-processing.s3.eu-west-2.amazonaws.com`
+
+Only objects under `smile-results/` are public — the rest of the bucket
+stays private.
+
 ## Why MongoDB is here
 
 Each upload becomes a `Job` document tracked through:

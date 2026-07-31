@@ -8,8 +8,9 @@ const PUBLIC_BASE_URL = process.env.S3_PUBLIC_BASE_URL; // e.g. https://your-buc
 
 /**
  * Uploads a processed image buffer to S3 and returns a public HTTPS URL.
- * The bucket/object must be publicly readable (or served via CloudFront)
- * since WhatsApp/Meta needs to fetch it without auth.
+ * Public read access comes from the BUCKET POLICY (not per-object ACLs,
+ * which modern buckets reject) — WhatsApp/Meta must be able to fetch the
+ * URL without auth. See README "S3 setup" for the policy JSON.
  */
 async function uploadProcessedImage(buffer, contentType = 'image/png') {
   const key = `smile-results/${Date.now()}-${crypto.randomUUID()}.png`;
@@ -19,8 +20,7 @@ async function uploadProcessedImage(buffer, contentType = 'image/png') {
       Bucket: BUCKET,
       Key: key,
       Body: buffer,
-      ContentType: contentType,
-      ACL: 'public-read'
+      ContentType: contentType
     })
   );
 

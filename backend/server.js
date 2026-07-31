@@ -1,6 +1,7 @@
 const path = require('path');
 // .env lives at the repo root, one level above backend/
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const crypto = require('crypto');
 const express = require('express');
 const mongoose = require('mongoose');
 const Job = require('./models/Job');
@@ -10,22 +11,61 @@ const app = express();
 app.use(express.json());
 
 /**
- * HTTP Basic Auth for the admin dashboard + its API.
- * Any username; password must equal ADMIN_PASSWORD from .env.
+ * Session-cookie auth for the admin dashboard's API.
+ * The dashboard page itself is public (it renders a login screen);
+ * data/API routes require a session obtained via POST /api/login.
+ * Sessions are in-memory: a server restart logs everyone out.
  */
+const SESSION_COOKIE = 'admin_session';
+const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
+const sessions = new Map(); // token -> expiry timestamp
+
+function getSessionToken(req) {
+  const cookie = (req.headers.cookie || '')
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${SESSION_COOKIE}=`));
+  return cookie ? cookie.slice(SESSION_COOKIE.length + 1) : null;
+}
+
 function adminAuth(req, res, next) {
+  if (!process.env.ADMIN_PASSWORD) {
+    return res.status(503).json({ error: 'ADMIN_PASSWORD is not configured on the server' });
+  }
+  const token = getSessionToken(req);
+  const expiry = token && sessions.get(token);
+  if (expiry && expiry > Date.now()) return next();
+  if (token) sessions.delete(token);
+  return res.status(401).json({ error: 'unauthorized' });
+}
+
+app.post('/api/login', (req, res) => {
   const password = process.env.ADMIN_PASSWORD;
   if (!password) {
     return res.status(503).json({ error: 'ADMIN_PASSWORD is not configured on the server' });
   }
-  const [scheme, encoded] = (req.headers.authorization || '').split(' ');
-  if (scheme === 'Basic' && encoded) {
-    const supplied = Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':');
-    if (supplied === password) return next();
-  }
-  res.set('WWW-Authenticate', 'Basic realm="smile-admin"');
-  return res.status(401).send('Authentication required');
-}
+  const supplied = String(req.body?.password || '');
+  const a = Buffer.from(supplied);
+  const b = Buffer.from(password);
+  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!match) return res.status(401).json({ error: 'wrong password' });
+
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: SESSION_TTL_MS
+  });
+  res.json({ ok: true });
+});
+
+app.post('/api/logout', (req, res) => {
+  const token = getSessionToken(req);
+  if (token) sessions.delete(token);
+  res.clearCookie(SESSION_COOKIE);
+  res.json({ ok: true });
+});
 
 // --- Mongo connection ---
 mongoose
@@ -94,7 +134,8 @@ app.post('/webhooks/ghl-smile-upload', async (req, res) => {
   }
 });
 
-app.get('/admin', adminAuth, (req, res) => {
+// The page itself is public — it shows a login screen until /api/login succeeds.
+app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'admin.html'));
 });
 

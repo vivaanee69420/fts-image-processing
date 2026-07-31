@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smile Jobs — Admin</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦷</text></svg>">
 <style>
   :root {
     color-scheme: light;
@@ -80,11 +81,42 @@
   .imgs .none { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); border-radius: 8px; padding: 20px 10px; text-align: center; }
   .imgs .none a { color: inherit; }
   .row { display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+  .login-screen {
+    position: fixed; inset: 0; background: var(--page);
+    display: none; align-items: center; justify-content: center; z-index: 10;
+  }
+  .login-card {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 12px;
+    padding: 28px 26px; width: min(340px, 90vw);
+  }
+  .login-card h2 { margin: 0 0 4px; font-size: 17px; }
+  .login-card p { margin: 0 0 16px; color: var(--ink-2); font-size: 13px; }
+  .login-card input[type=password] {
+    font: inherit; color: var(--ink); background: var(--page);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px;
+    width: 100%; margin-bottom: 10px;
+  }
+  .login-card button { width: 100%; padding: 9px 11px; font-weight: 600; }
+  .login-error { color: var(--crit); font-size: 13px; min-height: 18px; margin: 8px 0 0; }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; }
 </style>
 </head>
 <body>
+<div class="login-screen" id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <h2>🦷 Smile Jobs</h2>
+    <p>Enter the admin password to continue.</p>
+    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" autofocus>
+    <button type="submit" class="primary">Log in</button>
+    <div class="login-error" id="loginError"></div>
+  </form>
+</div>
+
 <div class="wrap">
-  <h1>Smile Jobs</h1>
+  <div class="topbar">
+    <h1>Smile Jobs</h1>
+    <button id="logout">Log out</button>
+  </div>
   <div class="banner" id="banner"></div>
   <div class="tiles" id="tiles"></div>
   <div class="bar">
@@ -135,11 +167,52 @@ function esc(s) {
 function showError(msg) { const b = $('banner'); b.textContent = msg; b.style.display = 'block'; }
 function clearError() { $('banner').style.display = 'none'; }
 
+function showLogin() {
+  $('loginScreen').style.display = 'flex';
+  $('loginPassword').focus();
+}
+function hideLogin() {
+  $('loginScreen').style.display = 'none';
+  $('loginError').textContent = '';
+  $('loginPassword').value = '';
+}
+
 async function api(path, opts) {
   const res = await fetch(path, opts);
+  if (res.status === 401) {
+    showLogin();
+    throw new Error('not logged in');
+  }
   if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
   return res.json();
 }
+
+$('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: $('loginPassword').value })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      $('loginError').textContent = body.error === 'wrong password'
+        ? 'Wrong password — try again.'
+        : `Login failed (${body.error || 'HTTP ' + res.status})`;
+      return;
+    }
+    hideLogin();
+    refresh();
+  } catch (err) {
+    $('loginError').textContent = 'Could not reach the server: ' + err.message;
+  }
+};
+
+$('logout').onclick = async () => {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch {}
+  showLogin();
+};
 
 async function loadStats() {
   const s = await api('/api/stats');
@@ -181,7 +254,10 @@ async function loadJobs() {
 
 async function refresh() {
   try { clearError(); await Promise.all([loadStats(), loadJobs()]); }
-  catch (e) { showError('Failed to load data: ' + e.message); }
+  catch (e) {
+    if (e.message === 'not logged in') return; // login screen is already showing
+    showError('Failed to load data: ' + e.message);
+  }
 }
 
 function img(label, url) {
@@ -233,7 +309,10 @@ $('statusFilter').onchange = () => { state.page = 1; refresh(); };
 $('search').oninput = () => { clearTimeout(state.searchT); state.searchT = setTimeout(() => { state.page = 1; loadJobs().catch((e) => showError(e.message)); }, 300); };
 $('prev').onclick = () => { if (state.page > 1) { state.page--; loadJobs(); } };
 $('next').onclick = () => { if (state.page < state.pages) { state.page++; loadJobs(); } };
-state.timer = setInterval(() => { if (!state.openJob) refresh(); }, 10000);
+state.timer = setInterval(() => {
+  const loginVisible = $('loginScreen').style.display === 'flex';
+  if (!state.openJob && !loginVisible) refresh();
+}, 10000);
 refresh();
 </script>
 </body>

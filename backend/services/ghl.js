@@ -32,8 +32,15 @@ async function downloadOriginalImage(imageUrl) {
  * Throws on missing config or non-2xx so the pipeline's retry logic applies.
  */
 async function sendResultWebhook(job) {
-  const url = process.env.GHL_RESULTS_WEBHOOK_URL;
-  if (!url) throw new Error('GHL_RESULTS_WEBHOOK_URL is not set');
+  // Dashboard-configured URL wins; .env is the fallback.
+  const Setting = require('../models/Setting');
+  const doc = await Setting.findOne({ key: 'resultsWebhookUrl' });
+  const url = (doc && doc.value) || process.env.GHL_RESULTS_WEBHOOK_URL;
+  if (!url) {
+    throw new Error(
+      'Results webhook URL is not configured — set it in the dashboard Settings (or GHL_RESULTS_WEBHOOK_URL in .env)'
+    );
+  }
 
   const response = await axios.post(
     url,

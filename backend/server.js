@@ -68,6 +68,52 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+const Setting = require('./models/Setting');
+const RESULTS_WEBHOOK_KEY = 'resultsWebhookUrl';
+
+app.get('/api/settings', adminAuth, async (req, res) => {
+  try {
+    const doc = await Setting.findOne({ key: RESULTS_WEBHOOK_KEY });
+    const resultsWebhookUrl = (doc && doc.value) || process.env.GHL_RESULTS_WEBHOOK_URL || '';
+    res.json({
+      inboundWebhookPath: '/webhooks/ghl-smile-upload',
+      resultsWebhookUrl,
+      config: {
+        mongodb: mongoose.connection.readyState === 1,
+        gemini: Boolean(process.env.GEMINI_API_KEY),
+        s3: Boolean(
+          process.env.AWS_ACCESS_KEY_ID &&
+            process.env.AWS_SECRET_ACCESS_KEY &&
+            process.env.S3_BUCKET_NAME &&
+            process.env.S3_PUBLIC_BASE_URL
+        ),
+        resultsWebhook: Boolean(resultsWebhookUrl)
+      }
+    });
+  } catch (err) {
+    console.error('GET /api/settings error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/settings', adminAuth, async (req, res) => {
+  try {
+    const url = String(req.body?.resultsWebhookUrl || '').trim();
+    if (url && !/^https?:\/\/.+/i.test(url)) {
+      return res.status(400).json({ error: 'must be a full http(s):// URL' });
+    }
+    await Setting.findOneAndUpdate(
+      { key: RESULTS_WEBHOOK_KEY },
+      { value: url },
+      { upsert: true }
+    );
+    res.json({ ok: true, resultsWebhookUrl: url });
+  } catch (err) {
+    console.error('PUT /api/settings error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Mongo connection ---
 mongoose
   .connect(process.env.MONGODB_URI, { dbName: process.env.DB_NAME || 'smile-webhook' })

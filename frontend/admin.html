@@ -99,6 +99,18 @@
   .login-card button { width: 100%; padding: 9px 11px; font-weight: 600; }
   .login-error { color: var(--crit); font-size: 13px; min-height: 18px; margin: 8px 0 0; }
   .topbar { display: flex; justify-content: space-between; align-items: baseline; }
+  .set-block { margin: 16px 0; }
+  .set-block label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .set-row { display: flex; gap: 8px; }
+  .set-row input[type=url], .set-row input[type=text] {
+    flex: 1; font: inherit; color: var(--ink); background: var(--page);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0;
+  }
+  .set-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .cfg { list-style: none; padding: 0; margin: 8px 0 0; }
+  .cfg li { padding: 4px 0; font-size: 13px; }
+  .cfg .ok { color: var(--good); }
+  .cfg .miss { color: var(--crit); }
 </style>
 </head>
 <body>
@@ -115,7 +127,10 @@
 <div class="wrap">
   <div class="topbar">
     <h1>Smile Jobs</h1>
-    <button id="logout">Log out</button>
+    <span>
+      <button id="settingsBtn">⚙ Settings</button>
+      <button id="logout">Log out</button>
+    </span>
   </div>
   <div class="banner" id="banner"></div>
   <div class="tiles" id="tiles"></div>
@@ -183,7 +198,10 @@ async function api(path, opts) {
     showLogin();
     throw new Error('not logged in');
   }
-  if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `${path} → HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -213,6 +231,82 @@ $('logout').onclick = async () => {
   try { await fetch('/api/logout', { method: 'POST' }); } catch {}
   showLogin();
 };
+
+async function openSettings() {
+  state.openJob = { settings: true }; // pauses auto-refresh while open
+  $('overlay').style.display = 'block';
+  const p = $('panel');
+  p.style.display = 'block';
+  p.innerHTML = '<p style="color:var(--muted)">Loading settings…</p>';
+  let s;
+  try { s = await api('/api/settings'); }
+  catch (e) { p.innerHTML = `<p style="color:var(--crit)">Could not load settings: ${esc(e.message)}</p>`; return; }
+
+  const receiveUrl = location.origin + s.inboundWebhookPath;
+  const cfg = (ok, label, hint) =>
+    `<li class="${ok ? 'ok' : 'miss'}">${ok ? '✓' : '✕'} ${label}${ok ? '' : ` — <span style="color:var(--muted)">${hint}</span>`}</li>`;
+
+  p.innerHTML = `
+    <div class="row"><h2>⚙ Settings</h2><button onclick="closePanel()">Close ✕</button></div>
+
+    <div class="set-block">
+      <label>RECEIVE — your webhook URL (paste into the GHL form workflow's Webhook action)</label>
+      <div class="set-row">
+        <input type="text" id="receiveUrl" readonly value="${esc(receiveUrl)}">
+        <button onclick="copyReceiveUrl()" id="copyBtn">Copy</button>
+      </div>
+      <div class="set-hint">⚠ GHL cannot reach <b>localhost</b>. Once deployed (or exposed with ngrok), open this
+      dashboard on that public domain and this box will show the correct public URL automatically.</div>
+    </div>
+
+    <div class="set-block">
+      <label>SEND — GHL Inbound Webhook trigger URL (processed image + contact details are POSTed here)</label>
+      <div class="set-row">
+        <input type="url" id="resultsUrl" placeholder="https://services.leadconnectorhq.com/hooks/…"
+          value="${esc(s.resultsWebhookUrl)}">
+        <button class="primary" onclick="saveSettings()">Save</button>
+      </div>
+      <div class="set-hint">In GHL: create a workflow with an <b>Inbound Webhook</b> trigger, copy its URL here.
+      Fields sent: jobId, contactId, name, email, phone, originalImageUrl, processedImageUrl.</div>
+      <div class="set-hint" id="saveMsg"></div>
+    </div>
+
+    <div class="set-block">
+      <label>CONFIG STATUS</label>
+      <ul class="cfg">
+        ${cfg(s.config.mongodb, 'MongoDB connected', 'check MONGODB_URI in .env')}
+        ${cfg(s.config.gemini, 'Gemini API key (AI image editing)', 'set GEMINI_API_KEY in .env')}
+        ${cfg(s.config.s3, 'S3 storage (processed images)', 'set AWS keys + S3_BUCKET_NAME + S3_PUBLIC_BASE_URL in .env')}
+        ${cfg(s.config.resultsWebhook, 'Results webhook URL (send)', 'fill the SEND field above')}
+      </ul>
+      <div class="set-hint">Items marked ✕ will make jobs fail at that pipeline step. .env changes need a server restart.</div>
+    </div>`;
+}
+
+async function copyReceiveUrl() {
+  const v = $('receiveUrl').value;
+  try { await navigator.clipboard.writeText(v); $('copyBtn').textContent = 'Copied ✓'; }
+  catch { $('receiveUrl').select(); document.execCommand('copy'); $('copyBtn').textContent = 'Copied ✓'; }
+  setTimeout(() => { const b = $('copyBtn'); if (b) b.textContent = 'Copy'; }, 1500);
+}
+
+async function saveSettings() {
+  const msg = $('saveMsg');
+  try {
+    await api('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resultsWebhookUrl: $('resultsUrl').value.trim() })
+    });
+    msg.textContent = 'Saved ✓ — takes effect immediately, no restart needed.';
+    msg.style.color = 'var(--good)';
+  } catch (e) {
+    msg.textContent = 'Save failed: ' + e.message;
+    msg.style.color = 'var(--crit)';
+  }
+}
+
+$('settingsBtn').onclick = openSettings;
 
 async function loadStats() {
   const s = await api('/api/stats');

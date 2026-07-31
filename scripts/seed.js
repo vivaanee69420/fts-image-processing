@@ -16,7 +16,7 @@ const samples = [
 ];
 
 (async () => {
-  await mongoose.connect(process.env.MONGODB_URI);
+  await mongoose.connect(process.env.MONGODB_URI, { dbName: process.env.DB_NAME || 'smile-webhook' });
   await Job.deleteMany({ email: /@seed\.test$/ });
   await Job.insertMany(
     samples.map((s, i) => ({

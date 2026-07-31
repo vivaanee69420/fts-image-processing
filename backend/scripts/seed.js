@@ -1,6 +1,6 @@
 // Inserts sample jobs so the /admin dashboard has data during development.
 // Re-runnable: wipes previous seed docs (email @seed.test) first.
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 const mongoose = require('mongoose');
 const Job = require('../models/Job');
 

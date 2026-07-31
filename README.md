@@ -5,22 +5,26 @@ GHL form (name/email/phone/photo) → webhook → this backend → Gemini image 
 ## Setup
 
 ```bash
+cp .env.example .env    # fill in real values (.env stays at the repo root)
+cd backend
 npm install
-cp .env.example .env   # fill in real values
 npm run dev             # or: npm start
 ```
 
 ## Project layout
 
 ```
-server.js            Express app: GHL webhook in, admin API, serves the dashboard
-pipeline.js          Job pipeline: download → Gemini → S3 → result webhook, with retries
-models/Job.js        Mongoose Job schema (status tracking per submission)
-services/ghl.js      Download original image + POST results back to GHL
-services/geminiImageEdit.js   Gemini smile transformation
-services/storage.js  S3 upload of the processed image
-scripts/seed.js      Inserts 6 sample jobs (emails @seed.test) for dashboard dev
-public/admin.html    The frontend — the whole admin dashboard, one file
+.env                 Secrets/config (repo root, gitignored)
+backend/
+  server.js          Express app: GHL webhook in, admin API, serves the dashboard
+  pipeline.js        Job pipeline: download → Gemini → S3 → result webhook, with retries
+  models/Job.js      Mongoose Job schema (status tracking per submission)
+  services/ghl.js    Download original image + POST results back to GHL
+  services/geminiImageEdit.js   Gemini smile transformation
+  services/storage.js           S3 upload of the processed image
+  scripts/seed.js    Inserts 6 sample jobs (emails @seed.test) for dashboard dev
+frontend/
+  admin.html         The admin dashboard (vanilla HTML/JS, no build step)
 ```
 
 ## Admin dashboard (frontend)

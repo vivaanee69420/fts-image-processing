@@ -1,7 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+// .env lives at the repo root, one level above backend/
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
-const path = require('path');
 const Job = require('./models/Job');
 const { runPipeline } = require('./pipeline');
 
@@ -94,7 +95,7 @@ app.post('/webhooks/ghl-smile-upload', async (req, res) => {
 });
 
 app.get('/admin', adminAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'admin.html'));
 });
 
 app.get('/api/jobs', adminAuth, async (req, res) => {

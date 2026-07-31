@@ -4,7 +4,7 @@ const jobSchema = new mongoose.Schema(
   {
     // Identity from GHL
     ghlContactId: { type: String, required: true, index: true },
-    ghlWebhookId: { type: String, index: true }, // GHL's own event/webhook id, used for idempotency
+    ghlWebhookId: String, // GHL's own event/webhook id; unique sparse index defined below for idempotency
     phone: { type: String, required: true },
     email: String,
     name: String,

@@ -8,6 +8,8 @@ const Job = require('./models/Job');
 const { runPipeline } = require('./pipeline');
 
 const app = express();
+// Railway (and most hosts) terminate HTTPS at a proxy in front of the app
+app.set('trust proxy', 1);
 app.use(express.json());
 
 /**
@@ -56,6 +58,7 @@ app.post('/api/login', (req, res) => {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production', // HTTPS-only cookie on Railway
     maxAge: SESSION_TTL_MS
   });
   res.json({ ok: true });

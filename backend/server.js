@@ -6,6 +6,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Job = require('./models/Job');
 const { runPipeline } = require('./pipeline');
+const { getProcessedImageUrl } = require('./services/storage');
 
 const app = express();
 // Railway (and most hosts) terminate HTTPS at a proxy in front of the app
@@ -203,7 +204,21 @@ app.get('/api/jobs', adminAuth, async (req, res) => {
     const jobs = await Job.find(filter)
       .sort({ createdAt: -1 })
       .skip((page - 1) * PER_PAGE)
-      .limit(PER_PAGE);
+      .limit(PER_PAGE)
+      .lean();
+    // Bucket is private: re-sign a fresh 7-day image URL from the stored key
+    // so dashboard images never go stale.
+    await Promise.all(
+      jobs.map(async (j) => {
+        if (j.processedImageKey) {
+          try {
+            j.processedImageUrl = await getProcessedImageUrl(j.processedImageKey);
+          } catch (e) {
+            console.error(`presign failed for job ${j._id}:`, e.message);
+          }
+        }
+      })
+    );
     res.json({ jobs, total, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)) });
   } catch (err) {
     console.error('GET /api/jobs error:', err);
@@ -256,8 +271,15 @@ app.post('/api/jobs/:id/retry', adminAuth, async (req, res) => {
  * submission while you're testing (or for Ruhith to check from Postman).
  */
 app.get('/jobs/:id', async (req, res) => {
-  const job = await Job.findById(req.params.id);
+  const job = await Job.findById(req.params.id).lean();
   if (!job) return res.status(404).json({ error: 'not found' });
+  if (job.processedImageKey) {
+    try {
+      job.processedImageUrl = await getProcessedImageUrl(job.processedImageKey);
+    } catch (e) {
+      console.error(`presign failed for job ${job._id}:`, e.message);
+    }
+  }
   res.json(job);
 });
 

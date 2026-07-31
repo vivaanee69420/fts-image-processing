@@ -11,7 +11,8 @@ const jobSchema = new mongoose.Schema(
 
     // Image data
     originalImageUrl: { type: String, required: true }, // URL GHL gave us
-    processedImageUrl: String, // public URL after AI processing + re-upload
+    processedImageKey: String, // S3 object key (bucket is private; URLs are presigned from this)
+    processedImageUrl: String, // last presigned URL (webhook payload); dashboard re-signs fresh
 
     // Pipeline status
     status: {

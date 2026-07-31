@@ -1,7 +1,7 @@
 const Job = require('./models/Job');
 const { downloadOriginalImage, sendResultWebhook } = require('./services/ghl');
 const { generateSmileTransformation } = require('./services/geminiImageEdit');
-const { uploadProcessedImage } = require('./services/storage');
+const { uploadProcessedImage, getProcessedImageUrl } = require('./services/storage');
 
 const MAX_ATTEMPTS = 3;
 
@@ -30,11 +30,14 @@ async function runPipeline(jobId) {
     await job.save();
     const processedBuffer = await generateSmileTransformation(originalBuffer, contentType);
 
-    // 3. Upload processed result to public storage
+    // 3. Upload processed result to the private S3 bucket
     job.status = 'uploading';
     await job.save();
-    const publicUrl = await uploadProcessedImage(processedBuffer);
-    job.processedImageUrl = publicUrl;
+    const key = await uploadProcessedImage(processedBuffer);
+    job.processedImageKey = key;
+    // Presigned URL (7-day) for the webhook payload; the dashboard
+    // re-signs from the key on every load, so it never goes stale there.
+    job.processedImageUrl = await getProcessedImageUrl(key);
     await job.save();
 
     // 4. Send result back to GHL via webhook - GHL's workflow handles delivery

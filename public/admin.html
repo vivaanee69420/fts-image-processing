@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smile Jobs — Admin</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e;
+    --muted: #898781; --line: #e1e0d9; --ring: rgba(11,11,11,0.10);
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7;
+      --muted: #898781; --line: #2c2c2a; --ring: rgba(255,255,255,0.10);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7;
+    --muted: #898781; --line: #2c2c2a; --ring: rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .banner {
+    display: none; background: var(--surface); border: 1px solid var(--crit);
+    color: var(--ink); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 12px 14px; }
+  .tile .v { font-size: 26px; font-weight: 650; }
+  .tile .k { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  select, input[type=search], button {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  }
+  input[type=search] { min-width: 220px; }
+  button { cursor: pointer; }
+  button.primary { border-color: var(--ink-2); font-weight: 600; }
+  .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  td.reason { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px;
+  }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .badge.completed .dot { background: var(--good); }
+  .badge.failed .dot { background: var(--crit); }
+  .badge.working .dot { background: var(--warn); }
+  .pager { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--ink-2); }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; }
+  .panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%);
+    background: var(--surface); border-left: 1px solid var(--ring);
+    padding: 20px; overflow-y: auto; display: none;
+  }
+  .panel h2 { margin: 0 0 4px; font-size: 16px; }
+  .panel dl { display: grid; grid-template-columns: 130px 1fr; gap: 6px 10px; margin: 14px 0; }
+  .panel dt { color: var(--muted); font-size: 12px; }
+  .panel dd { margin: 0; word-break: break-word; }
+  .imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .imgs figure { margin: 0; }
+  .imgs figcaption { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .imgs img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: var(--page); }
+  .imgs .none { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); border-radius: 8px; padding: 20px 10px; text-align: center; }
+  .imgs .none a { color: inherit; }
+  .row { display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Smile Jobs</h1>
+  <div class="banner" id="banner"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="bar">
+    <select id="statusFilter">
+      <option value="">All statuses</option>
+      <option>received</option><option>downloading</option><option>processing</option>
+      <option>uploading</option><option>sending_result</option>
+      <option>completed</option><option>failed</option>
+    </select>
+    <input type="search" id="search" placeholder="Search name / phone / email">
+    <button id="refresh" class="primary">Refresh</button>
+    <span id="autoNote" style="color:var(--muted);font-size:12px">auto-refreshes every 10s</span>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>Created</th><th>Name</th><th>Phone</th><th>Status</th>
+        <th class="num">Attempts</th><th>Failure reason</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <button id="prev">‹ Prev</button>
+    <span id="pageInfo"></span>
+    <button id="next">Next ›</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<aside class="panel" id="panel"></aside>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const WORKING = ['received', 'downloading', 'processing', 'uploading', 'sending_result'];
+const ICONS = { completed: '✓', failed: '✕' };
+let state = { page: 1, pages: 1, openJob: null, timer: null };
+
+function badge(status) {
+  const cls = status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'working';
+  const icon = ICONS[status] || '●';
+  return `<span class="badge ${cls}"><span class="dot"></span>${icon} ${status}</span>`;
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function showError(msg) { const b = $('banner'); b.textContent = msg; b.style.display = 'block'; }
+function clearError() { $('banner').style.display = 'none'; }
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
+  return res.json();
+}
+
+async function loadStats() {
+  const s = await api('/api/stats');
+  const working = WORKING.reduce((n, k) => n + (s.byStatus[k] || 0), 0);
+  const rate = s.successRate == null ? '—' : Math.round(s.successRate * 100) + '%';
+  $('tiles').innerHTML = [
+    [s.total, 'Total jobs'],
+    [s.byStatus.completed || 0, 'Completed'],
+    [s.byStatus.failed || 0, 'Failed'],
+    [working, 'In progress'],
+    [rate, 'Success rate'],
+    [s.last24h, 'Last 24h']
+  ].map(([v, k]) => `<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+}
+
+async function loadJobs() {
+  const q = new URLSearchParams();
+  if ($('statusFilter').value) q.set('status', $('statusFilter').value);
+  if ($('search').value.trim()) q.set('search', $('search').value.trim());
+  q.set('page', state.page);
+  const data = await api('/api/jobs?' + q);
+  state.pages = data.pages;
+  $('pageInfo').textContent = `page ${data.page} / ${data.pages} — ${data.total} jobs`;
+  $('prev').disabled = data.page <= 1;
+  $('next').disabled = data.page >= data.pages;
+  $('rows').innerHTML = data.jobs.map((j) => `
+    <tr data-id="${j._id}">
+      <td>${new Date(j.createdAt).toLocaleString()}</td>
+      <td>${esc(j.name) || '—'}</td>
+      <td>${esc(j.phone)}</td>
+      <td>${badge(j.status)}</td>
+      <td class="num">${j.attempts}</td>
+      <td class="reason" title="${esc(j.failureReason)}">${esc(j.failureReason) || ''}</td>
+    </tr>`).join('');
+  data.jobs.forEach((j) => {
+    document.querySelector(`tr[data-id="${j._id}"]`).onclick = () => openPanel(j);
+  });
+}
+
+async function refresh() {
+  try { clearError(); await Promise.all([loadStats(), loadJobs()]); }
+  catch (e) { showError('Failed to load data: ' + e.message); }
+}
+
+function img(label, url) {
+  if (!url) return `<figure><figcaption>${label}</figcaption><div class="none">no image yet</div></figure>`;
+  return `<figure><figcaption>${label}</figcaption>
+    <img src="${esc(url)}" alt="${label}"
+      onerror="this.outerHTML='<div class=none>image failed to load<br><a href=&quot;${esc(url)}&quot; target=_blank>open URL</a></div>'>
+  </figure>`;
+}
+
+function openPanel(j) {
+  state.openJob = j;
+  $('overlay').style.display = 'block';
+  const p = $('panel');
+  p.style.display = 'block';
+  p.innerHTML = `
+    <div class="row"><h2>${esc(j.name) || 'Unnamed'} ${badge(j.status)}</h2>
+      <button onclick="closePanel()">Close ✕</button></div>
+    <dl>
+      <dt>Job ID</dt><dd>${j._id}</dd>
+      <dt>Contact ID</dt><dd>${esc(j.ghlContactId)}</dd>
+      <dt>Phone</dt><dd>${esc(j.phone)}</dd>
+      <dt>Email</dt><dd>${esc(j.email) || '—'}</dd>
+      <dt>Attempts</dt><dd>${j.attempts}</dd>
+      <dt>Created</dt><dd>${new Date(j.createdAt).toLocaleString()}</dd>
+      <dt>Last attempt</dt><dd>${j.lastAttemptAt ? new Date(j.lastAttemptAt).toLocaleString() : '—'}</dd>
+      <dt>Failure reason</dt><dd>${esc(j.failureReason) || '—'}</dd>
+    </dl>
+    <div class="imgs">${img('Original', j.originalImageUrl)}${img('Processed', j.processedImageUrl)}</div>
+    ${j.status === 'failed' ? `<p><button class="primary" onclick="retryJob('${j._id}')">Retry this job</button></p>` : ''}
+    <p id="retryMsg" style="color:var(--ink-2)"></p>`;
+}
+function closePanel() {
+  state.openJob = null;
+  $('overlay').style.display = 'none';
+  $('panel').style.display = 'none';
+}
+async function retryJob(id) {
+  try {
+    await api(`/api/jobs/${id}/retry`, { method: 'POST' });
+    $('retryMsg').textContent = 'Retry started — refreshing…';
+    setTimeout(() => { closePanel(); refresh(); }, 1200);
+  } catch (e) { $('retryMsg').textContent = 'Retry failed: ' + e.message; }
+}
+
+$('overlay').onclick = closePanel;
+$('refresh').onclick = () => { state.page = 1; refresh(); };
+$('statusFilter').onchange = () => { state.page = 1; refresh(); };
+$('search').oninput = () => { clearTimeout(state.searchT); state.searchT = setTimeout(() => { state.page = 1; loadJobs().catch((e) => showError(e.message)); }, 300); };
+$('prev').onclick = () => { if (state.page > 1) { state.page--; loadJobs(); } };
+$('next').onclick = () => { if (state.page < state.pages) { state.page++; loadJobs(); } };
+state.timer = setInterval(() => { if (!state.openJob) refresh(); }, 10000);
+refresh();
+</script>
+</body>
+</html>

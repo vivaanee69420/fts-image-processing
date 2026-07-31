@@ -21,7 +21,7 @@ const jobSchema = new mongoose.Schema(
         'downloading',      // fetching original image from GHL
         'processing',       // sent to Gemini
         'uploading',        // uploading processed result to public storage
-        'sending_whatsapp', // calling GHL Conversations API
+        'sending_result',   // POSTing result webhook back to GHL
         'completed',
         'failed'
       ],

@@ -1,6 +1,6 @@
 # Smile Transformation Webhook
 
-GHL form (name/email/phone/photo) → webhook → this backend → Gemini image edit → S3 → WhatsApp via GHL.
+GHL form (name/email/phone/photo) → webhook → this backend → Gemini image edit → S3 → result webhook back to GHL.
 
 ## Setup
 
@@ -24,7 +24,7 @@ npm run dev             # or: npm start
 ## Why MongoDB is here
 
 Each upload becomes a `Job` document tracked through:
-`received → downloading → processing → uploading → sending_whatsapp → completed/failed`
+`received → downloading → processing → uploading → sending_result → completed/failed`
 
 This gives you:
 - **Idempotency** — GHL sometimes retries webhook deliveries; the unique

@@ -27,23 +27,29 @@ async function downloadOriginalImage(imageUrl) {
 }
 
 /**
- * Sends the processed image to the contact over WhatsApp via GHL's
- * Conversations API. Requires the WhatsApp channel to already be
- * connected on this GHL location (it is, per Ruhith's existing setup).
+ * POSTs the finished job's data to a GHL Inbound Webhook trigger URL.
+ * GHL's own workflow takes it from there (WhatsApp/SMS/email send).
+ * Throws on missing config or non-2xx so the pipeline's retry logic applies.
  */
-async function sendWhatsAppImage(contactId, imageUrl, caption = '') {
+async function sendResultWebhook(job) {
+  const url = process.env.GHL_RESULTS_WEBHOOK_URL;
+  if (!url) throw new Error('GHL_RESULTS_WEBHOOK_URL is not set');
+
   const response = await axios.post(
-    `${GHL_API_BASE}/conversations/messages`,
+    url,
     {
-      type: 'WhatsApp',
-      contactId,
-      message: caption,
-      attachments: [imageUrl]
+      jobId: job._id.toString(),
+      contactId: job.ghlContactId,
+      name: job.name,
+      email: job.email,
+      phone: job.phone,
+      originalImageUrl: job.originalImageUrl,
+      processedImageUrl: job.processedImageUrl
     },
-    { headers: { ...ghlHeaders, 'Content-Type': 'application/json' } }
+    { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
   );
 
   return response.data;
 }
 
-module.exports = { downloadOriginalImage, sendWhatsAppImage };
+module.exports = { downloadOriginalImage, sendResultWebhook };

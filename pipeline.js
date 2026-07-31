@@ -1,5 +1,5 @@
 const Job = require('./models/Job');
-const { downloadOriginalImage, sendWhatsAppImage } = require('./services/ghl');
+const { downloadOriginalImage, sendResultWebhook } = require('./services/ghl');
 const { generateSmileTransformation } = require('./services/geminiImageEdit');
 const { uploadProcessedImage } = require('./services/storage');
 
@@ -37,14 +37,10 @@ async function runPipeline(jobId) {
     job.processedImageUrl = publicUrl;
     await job.save();
 
-    // 4. Send via WhatsApp through GHL
-    job.status = 'sending_whatsapp';
+    // 4. Send result back to GHL via webhook - GHL's workflow handles delivery
+    job.status = 'sending_result';
     await job.save();
-    await sendWhatsAppImage(
-      job.ghlContactId,
-      publicUrl,
-      `Hi ${job.name || ''}! Here's your smile makeover simulation. Reply to this message if you'd like to book a free consultation.`
-    );
+    await sendResultWebhook(job);
 
     job.status = 'completed';
     job.failureReason = undefined;

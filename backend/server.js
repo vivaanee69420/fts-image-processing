@@ -44,9 +44,10 @@ app.post('/api/login', (req, res) => {
   if (!password) {
     return res.status(503).json({ error: 'ADMIN_PASSWORD is not configured on the server' });
   }
-  const supplied = String(req.body?.password || '');
+  // trim: stray whitespace from copy-paste should never fail a login
+  const supplied = String(req.body?.password || '').trim();
   const a = Buffer.from(supplied);
-  const b = Buffer.from(password);
+  const b = Buffer.from(password.trim());
   const match = a.length === b.length && crypto.timingSafeEqual(a, b);
   if (!match) return res.status(401).json({ error: 'wrong password' });
 

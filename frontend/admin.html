@@ -193,7 +193,7 @@ $('loginForm').onsubmit = async (e) => {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: $('loginPassword').value })
+      body: JSON.stringify({ password: $('loginPassword').value.trim() })
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

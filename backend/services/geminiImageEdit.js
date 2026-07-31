@@ -2,6 +2,18 @@ const { GoogleGenAI } = require('@google/genai');
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+// Both overridable via env — no redeploy needed to switch model or tune wording.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-image';
+// Keep default phrasing simple: the earlier elaborate "dental smile makeover
+// simulation" prompt made the model refuse (finishReason IMAGE_OTHER, no
+// image). This wording returns an image reliably.
+const SMILE_PROMPT =
+  process.env.SMILE_PROMPT ||
+  'Whiten the teeth in this photo so they look naturally white, and make ' +
+    'them appear straight and evenly aligned. Keep the face, skin, lighting, ' +
+    'hair, background and expression exactly the same. The edit should look ' +
+    'like a realistic photo, not a filter. Return the edited image.';
+
 /**
  * Sends a photo to Gemini's image model and asks it to perform a
  * smile/teeth transformation while leaving the rest of the photo untouched.
@@ -11,22 +23,13 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
  * @returns {Promise<Buffer>} processed image bytes
  */
 async function generateSmileTransformation(imageBuffer, mimeType = 'image/jpeg') {
-  // Keep this phrasing simple: the earlier elaborate "dental smile makeover
-  // simulation" prompt made the model refuse (finishReason IMAGE_OTHER, no
-  // image). This wording returns an image reliably.
-  const prompt =
-    'Whiten the teeth in this photo so they look naturally white, and make ' +
-    'them appear straight and evenly aligned. Keep the face, skin, lighting, ' +
-    'hair, background and expression exactly the same. The edit should look ' +
-    'like a realistic photo, not a filter. Return the edited image.';
-
   const response = await genAI.models.generateContent({
-    model: 'gemini-2.5-flash-image', // "Nano Banana" - cheaper editing model
+    model: GEMINI_MODEL, // default: "Nano Banana" (gemini-2.5-flash-image)
     contents: [
       {
         role: 'user',
         parts: [
-          { text: prompt },
+          { text: SMILE_PROMPT },
           {
             inlineData: {
               mimeType,

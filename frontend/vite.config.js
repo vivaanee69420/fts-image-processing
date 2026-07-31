@@ -4,17 +4,19 @@ import react from '@vitejs/plugin-react';
 // base './' keeps asset paths relative so the same build works both
 // served at '/' (nginx frontend service) and under '/admin' (backend
 // serving the built dist during local single-server dev).
+// Dev-only proxy target; override with DEV_BACKEND_URL if the backend
+// runs elsewhere. Production uses nginx + BACKEND_URL instead (no CORS).
+const backend = process.env.DEV_BACKEND_URL || 'http://localhost:3000';
+
 export default defineConfig({
   plugins: [react()],
   base: './',
   server: {
-    // Local dev: `npm run dev` here + backend on :3000 — same-origin via proxy,
-    // exactly like nginx does in production. No CORS anywhere.
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/webhooks': 'http://localhost:3000',
-      '/jobs': 'http://localhost:3000',
-      '/health': 'http://localhost:3000'
+      '/api': backend,
+      '/webhooks': backend,
+      '/jobs': backend,
+      '/health': backend
     }
   }
 });

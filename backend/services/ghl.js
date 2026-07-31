@@ -1,8 +1,7 @@
 const axios = require('axios');
 
-const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 const GHL_API_KEY = process.env.GHL_API_KEY;
-const GHL_API_VERSION = '2021-04-15';
+const GHL_API_VERSION = process.env.GHL_API_VERSION || '2021-04-15';
 
 const ghlHeaders = {
   Authorization: `Bearer ${GHL_API_KEY}`,

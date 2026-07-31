@@ -3,7 +3,7 @@ const { downloadOriginalImage, sendResultWebhook } = require('./services/ghl');
 const { generateSmileTransformation } = require('./services/geminiImageEdit');
 const { uploadProcessedImage, getProcessedImageUrl } = require('./services/storage');
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = Number(process.env.PIPELINE_MAX_ATTEMPTS) || 3;
 
 /**
  * Runs the full pipeline for a single job. Designed to be called

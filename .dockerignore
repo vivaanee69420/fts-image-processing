@@ -1,9 +1,0 @@
-node_modules
-backend/node_modules
-.env
-.git
-.gitignore
-.superpowers
-.playwright-mcp
-docs
-*.md

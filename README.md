@@ -37,6 +37,24 @@ a searchable + filterable jobs table that auto-refreshes every 10s, a
 detail panel with the original vs processed photos side by side, and a
 **Retry** button for failed jobs. Sample data: `node scripts/seed.js`.
 
+## Deploying on Railway (two services)
+
+Both services deploy from this same GitHub repo:
+
+1. **Backend service**: New service → GitHub repo → Settings → **Root
+   Directory = `backend`**. Add all `.env` variables in the Variables tab
+   (use a strong `ADMIN_PASSWORD`). Generate a public domain.
+2. **Frontend service**: second service from the same repo → **Root
+   Directory = `frontend`**. Add one variable:
+   `BACKEND_URL=https://<backend-domain>` (no trailing slash). Generate a
+   public domain — this is the URL you open for the dashboard.
+3. MongoDB Atlas → Network Access must allow Railway's IPs (`0.0.0.0/0`
+   is the simple option).
+
+The frontend's nginx proxies `/api`, `/webhooks`, `/jobs`, and `/health`
+to the backend, so the browser sees one origin. Point GHL's form webhook
+at either domain's `/webhooks/ghl-smile-upload`.
+
 ## Wiring into GHL
 
 1. In the GHL form's workflow, add a **Webhook** action on "Form Submitted".

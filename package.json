@@ -1,0 +1,21 @@
+{
+  "name": "smile-webhook",
+  "version": "1.0.0",
+  "description": "GHL webhook -> Gemini smile transformation -> S3 -> GHL WhatsApp send",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@google/genai": "^0.3.0",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.4.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

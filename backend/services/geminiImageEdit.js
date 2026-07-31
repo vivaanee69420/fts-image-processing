@@ -11,14 +11,14 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
  * @returns {Promise<Buffer>} processed image bytes
  */
 async function generateSmileTransformation(imageBuffer, mimeType = 'image/jpeg') {
-  const prompt = `
-    Edit this photo to show a realistic dental smile makeover simulation.
-    - Whiten the teeth naturally (not artificially bright/fake looking)
-    - Straighten and even out visible tooth alignment and spacing
-    - Keep the exact same face, skin tone, lighting, background, hair, and expression
-    - Do not change anything outside the mouth/teeth region
-    - The result must look like a realistic "after" photo, not a filter or cartoon
-  `.trim();
+  // Keep this phrasing simple: the earlier elaborate "dental smile makeover
+  // simulation" prompt made the model refuse (finishReason IMAGE_OTHER, no
+  // image). This wording returns an image reliably.
+  const prompt =
+    'Whiten the teeth in this photo so they look naturally white, and make ' +
+    'them appear straight and evenly aligned. Keep the face, skin, lighting, ' +
+    'hair, background and expression exactly the same. The edit should look ' +
+    'like a realistic photo, not a filter. Return the edited image.';
 
   const response = await genAI.models.generateContent({
     model: 'gemini-2.5-flash-image', // "Nano Banana" - cheaper editing model
@@ -38,11 +38,17 @@ async function generateSmileTransformation(imageBuffer, mimeType = 'image/jpeg')
     ]
   });
 
-  const parts = response.candidates?.[0]?.content?.parts || [];
+  const candidate = response.candidates?.[0];
+  const parts = candidate?.content?.parts || [];
   const imagePart = parts.find((p) => p.inlineData);
 
   if (!imagePart) {
-    throw new Error('Gemini did not return an image in the response');
+    const text = parts.map((p) => p.text).filter(Boolean).join(' ').slice(0, 200);
+    throw new Error(
+      `Gemini did not return an image (finishReason: ${candidate?.finishReason || 'none'}` +
+        (text ? `, said: "${text}"` : '') +
+        ')'
+    );
   }
 
   return Buffer.from(imagePart.inlineData.data, 'base64');
